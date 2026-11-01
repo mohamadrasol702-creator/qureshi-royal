@@ -1,21 +1,18 @@
-# Qureshi Royal (standalone: no Termux, no server)
+# Qureshi Royal v0.5
+One engine (`server/`), two ways to run it:
+1. LOCAL (default): inside the APK, no server, no Termux.
+2. VPS (24/7): run `server/` on a VPS; the app is only the remote control:
+   config url http://SERVER_IP:3000
+   config token YOUR_TOKEN
 
-Bot engine (Node.js) runs INSIDE the app as a foreground service.
+## Build the APK (GitHub Actions)
+Push this folder to GitHub > Actions > Build APK > Run workflow > download artifact.
 
-## Build with GitHub (no Android Studio needed)
-1. Make a free GitHub account, create a new repository.
-2. Upload ALL files of this folder (keep the folders, including `.github`).
-3. Tab "Actions" > "Build APK" > "Run workflow". Wait ~10 minutes.
-4. Open the finished run > Artifacts > download `QureshiRoyal-APK`, unzip, install the APK.
-
-## Build with Android Studio
-Put libnode.so (arm64-v8a) + headers from nodejs-mobile into app/libnode/, run `npm install --omit=dev` in nodejs-src, zip nodejs-src into app/src/main/assets/nodejs-project.zip, then Run.
-
-## Screens
-Home (status + start/stop), WhatsApp (pairing code), Custom (name, prefix, messages, protection, own commands), Terminal.
-
-## First use (inside the app)
-battery
-whatsapp pairing 93700000000
-bot start
-group list / security antilink on / settings set botname X / commands create hi Hello
+## VPS install (Ubuntu)
+sudo apt update && sudo apt install -y git curl
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - && sudo apt install -y nodejs
+sudo npm i -g pm2
+cd server && npm install
+cp .env.example .env     # put API_TOKEN (openssl rand -hex 24)
+pm2 start ecosystem.config.js && pm2 save && pm2 startup
+sudo ufw allow 3000/tcp

@@ -8,10 +8,10 @@ import java.net.*;
 public class Api {
     static String call(Context c, String method, String path, String body) {
         try {
-            HttpURLConnection h = (HttpURLConnection) new URL("http://127.0.0.1:3000" + path).openConnection();
+            HttpURLConnection h = (HttpURLConnection) new URL(CommandCenter.baseUrl(c) + path).openConnection();
             h.setConnectTimeout(3000); h.setReadTimeout(40000);
             h.setRequestMethod(method);
-            h.setRequestProperty("Authorization", "Bearer " + CommandCenter.token(c));
+            h.setRequestProperty("Authorization", "Bearer " + CommandCenter.activeToken(c));
             if (body != null) {
                 h.setRequestProperty("Content-Type", "application/json");
                 h.setDoOutput(true);

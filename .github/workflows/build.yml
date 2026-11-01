@@ -21,10 +21,10 @@ jobs:
           cp -r "$(dirname "$(find nm -name node.h | head -1)")" app/libnode/include/node
       - name: Bundle bot engine
         run: |
-          cd nodejs-src
+          cd server
           npm install --omit=dev --omit=optional --no-audit --no-fund
           mkdir -p ../app/src/main/assets
-          zip -qr ../app/src/main/assets/nodejs-project.zip . -x "*/.bin/*"
+          zip -qr ../app/src/main/assets/nodejs-project.zip . -x "*/.bin/*" ".env*" "ecosystem.config.js"
       - uses: gradle/actions/setup-gradle@v4
         with: { gradle-version: '8.9' }
       - run: gradle assembleDebug --no-daemon

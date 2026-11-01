@@ -27,7 +27,7 @@ public class MainActivity extends Activity {
         super.onCreate(b);
         if (Build.VERSION.SDK_INT >= 33)
             requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 1);
-        startForegroundService(new Intent(this, BotService.class));
+        if (!CommandCenter.isRemote(this)) startForegroundService(new Intent(this, BotService.class));
         center = new CommandCenter(this);
 
         LinearLayout root = new LinearLayout(this);
