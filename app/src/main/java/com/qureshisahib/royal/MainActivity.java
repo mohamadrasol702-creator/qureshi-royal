@@ -1,236 +1,335 @@
 package com.qureshisahib.royal;
 
-import android.Manifest;
 import android.app.Activity;
-import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.Typeface;
-import android.os.*;
+import android.graphics.drawable.GradientDrawable;
+import android.os.Bundle;
 import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
-import android.view.inputmethod.EditorInfo;
-import android.widget.*;
-import org.json.JSONObject;
+import android.widget.Button;
+import android.widget.CompoundButton;
+import android.widget.EditText;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
+import android.widget.Switch;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 
 public class MainActivity extends Activity {
-    static final int BG = Color.parseColor("#0B0B12"), GOLD = Color.parseColor("#FFD700"),
-        SURF = Color.parseColor("#1A1A26"), GREEN = Color.parseColor("#00FF9C");
 
-    private FrameLayout content;
-    private final Handler ui = new Handler(Looper.getMainLooper());
-    private Runnable poll;
-    private CommandCenter center;
-    private Button[] tabs;
+    final int BG = Color.rgb(12, 10, 20);
+    final int CARD = Color.rgb(28, 22, 39);
+    final int PURPLE = Color.rgb(91, 40, 145);
+    final int GOLD = Color.rgb(224, 184, 91);
+    final int GREEN = Color.rgb(76, 175, 80);
 
-    @Override protected void onCreate(Bundle b) {
+    // همین کلیدها با DEFAULTS در index.js ربات یکی هستند
+    final String[] KEYS = {"antilink", "antiflood", "antirepeat", "antiads",
+            "onlyadmin", "welcome", "farewell", "protectsettings"};
+    final String[] NAMES = {"ضد لینک", "ضد سیل پیام", "ضد تکرار", "ضد تبلیغات",
+            "فقط ادمین", "خوش‌آمدگویی", "خداحافظی", "محافظت تنظیمات"};
+    final boolean[] DEFS = {true, true, true, true, false, true, true, true};
+
+    SharedPreferences sp;
+    LinearLayout content, nav;
+    String current = "home";
+
+    // ---------- ابزارها ----------
+    int dp(int v) {
+        return (int) (v * getResources().getDisplayMetrics().density + 0.5f);
+    }
+
+    GradientDrawable shape(int color, int radiusDp, int stroke) {
+        GradientDrawable d = new GradientDrawable();
+        d.setColor(color);
+        d.setCornerRadius(dp(radiusDp));
+        if (stroke != 0) d.setStroke(dp(1), stroke);
+        return d;
+    }
+
+    TextView label(String v, int size, int color, boolean bold, int gravity) {
+        TextView t = new TextView(this);
+        t.setText(v);
+        t.setTextSize(size);
+        t.setTextColor(color);
+        t.setGravity(gravity);
+        t.setTypeface(Typeface.DEFAULT, bold ? Typeface.BOLD : Typeface.NORMAL);
+        t.setPadding(dp(6), dp(4), dp(6), dp(4));
+        return t;
+    }
+
+    LinearLayout.LayoutParams lp(int top) {
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1, -2);
+        p.setMargins(0, dp(top), 0, dp(top));
+        return p;
+    }
+
+    void card(String icon, String title, String sub, View.OnClickListener click) {
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(dp(14), dp(12), dp(14), dp(12));
+        box.setBackground(shape(CARD, 18, PURPLE));
+        box.addView(label(icon + "  " + title, 18, GOLD, true, Gravity.START));
+        if (sub != null) box.addView(label(sub, 13, Color.LTGRAY, false, Gravity.START));
+        if (click != null) box.setOnClickListener(click);
+        content.addView(box, lp(6));
+    }
+
+    Button button(String text, boolean primary, View.OnClickListener l) {
+        Button b = new Button(this);
+        b.setText(text);
+        b.setAllCaps(false);
+        b.setTextSize(16);
+        b.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        b.setTextColor(primary ? Color.BLACK : GOLD);
+        b.setBackground(primary ? shape(GOLD, 30, 0) : shape(CARD, 30, GOLD));
+        b.setOnClickListener(l);
+        return b;
+    }
+
+    EditText input(String hint, String value, boolean multiline) {
+        EditText e = new EditText(this);
+        e.setHint(hint);
+        e.setText(value);
+        e.setTextColor(Color.WHITE);
+        e.setHintTextColor(Color.GRAY);
+        e.setPadding(dp(14), dp(10), dp(14), dp(10));
+        e.setBackground(shape(CARD, 14, PURPLE));
+        if (multiline) {
+            e.setMinLines(3);
+            e.setGravity(Gravity.TOP | Gravity.START);
+        }
+        return e;
+    }
+
+    void toggle(final String key, String name, boolean def) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(14), dp(8), dp(14), dp(8));
+        row.setBackground(shape(CARD, 14, PURPLE));
+        TextView t = label(name, 16, Color.WHITE, false, Gravity.START);
+        row.addView(t, new LinearLayout.LayoutParams(0, -2, 1));
+        Switch s = new Switch(this);
+        s.setChecked(sp.getBoolean(key, def));
+        s.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton v, boolean on) {
+                sp.edit().putBoolean(key, on).apply();
+                log((on ? "فعال شد: " : "غیرفعال شد: ") + key);
+            }
+        });
+        row.addView(s);
+        content.addView(row, lp(5));
+    }
+
+    void title(String t) {
+        content.addView(label(t, 22, GOLD, true, Gravity.CENTER), lp(8));
+    }
+
+    // ---------- گزارش‌ها ----------
+    void log(String msg) {
+        String time = new SimpleDateFormat("MM/dd HH:mm", Locale.US).format(new Date());
+        String old = sp.getString("logs", "");
+        String all = time + "  " + msg + (old.isEmpty() ? "" : "\n" + old);
+        String[] lines = all.split("\n");
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < Math.min(lines.length, 50); i++) {
+            if (i > 0) sb.append("\n");
+            sb.append(lines[i]);
+        }
+        sp.edit().putString("logs", sb.toString()).apply();
+    }
+
+    int activeCount() {
+        int n = 0;
+        for (int i = 0; i < KEYS.length; i++) if (sp.getBoolean(KEYS[i], DEFS[i])) n++;
+        return n;
+    }
+
+    // ---------- صفحه‌ها ----------
+    void pageHome() {
+        TextView brand = label("♛ QURESHI ROYAL ♛", 26, GOLD, true, Gravity.CENTER);
+        content.addView(brand, lp(4));
+        content.addView(label("مرکز مدیریت هوشمند واتساپ", 14, Color.LTGRAY, false, Gravity.CENTER));
+
+        String status = sp.getString("status", "ربات هنوز راه‌اندازی نشده است");
+        card("♛", "وضعیت ربات", status, null);
+        card("🛡", "محافظت‌ها", activeCount() + " از " + KEYS.length + " مورد فعال است",
+                new View.OnClickListener() {
+                    public void onClick(View v) { show("protect"); }
+                });
+        card("◈", "اتصال واتساپ", "اتصال با شماره و کُد جفت‌سازی",
+                new View.OnClickListener() {
+                    public void onClick(View v) { show("connect"); }
+                });
+        card("♜", "مدیریت گروه‌ها", "کنترول اعضا، مدیران و تنظیمات",
+                new View.OnClickListener() {
+                    public void onClick(View v) { show("groups"); }
+                });
+        card("✉", "پیام‌های خودکار", "خوش‌آمدگویی و خداحافظی",
+                new View.OnClickListener() {
+                    public void onClick(View v) { show("messages"); }
+                });
+        card("▤", "گزارش فعالیت‌ها", "مشاهدهٔ رویدادها و گزارش ربات",
+                new View.OnClickListener() {
+                    public void onClick(View v) { show("logs"); }
+                });
+    }
+
+    void pageConnect() {
+        title("◈ اتصال واتساپ");
+        content.addView(label("شمارهٔ ربات را با کد کشور و بدون + بنویسید (مثال: 93700000000)",
+                13, Color.LTGRAY, false, Gravity.START));
+        final EditText phone = input("شمارهٔ واتساپ", sp.getString("phone", ""), false);
+        phone.setInputType(InputType.TYPE_CLASS_PHONE);
+        content.addView(phone, lp(8));
+        content.addView(button("ذخیره شماره", true, new View.OnClickListener() {
+            public void onClick(View v) {
+                String p = phone.getText().toString().replaceAll("\\D", "");
+                if (p.length() < 8) {
+                    Toast.makeText(MainActivity.this, "شماره درست نیست", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                sp.edit().putString("phone", p).putString("status", "شماره ثبت شد: " + p).apply();
+                log("شماره ثبت شد");
+                Toast.makeText(MainActivity.this, "ذخیره شد", Toast.LENGTH_SHORT).show();
+            }
+        }), lp(6));
+        content.addView(button("قطع اتصال و پاک‌کردن شماره", false, new View.OnClickListener() {
+            public void onClick(View v) {
+                sp.edit().remove("phone").putString("status", "ربات هنوز راه‌اندازی نشده است").apply();
+                log("اتصال پاک شد");
+                show("connect");
+            }
+        }), lp(6));
+    }
+
+    void pageProtect() {
+        title("🛡 محافظت گروه");
+        for (int i = 0; i < KEYS.length; i++) toggle(KEYS[i], NAMES[i], DEFS[i]);
+    }
+
+    void pageMessages() {
+        title("✉ پیام‌های خودکار");
+        content.addView(label("پیام خوش‌آمدگویی", 14, GOLD, true, Gravity.START));
+        final EditText w = input("متن خوش‌آمدگویی",
+                sp.getString("welcome_text", "به گروه خوش آمدی 👑"), true);
+        content.addView(w, lp(4));
+        content.addView(label("پیام خداحافظی", 14, GOLD, true, Gravity.START));
+        final EditText f = input("متن خداحافظی",
+                sp.getString("farewell_text", "خداحافظ، به امید دیدار 👋"), true);
+        content.addView(f, lp(4));
+        content.addView(button("ذخیره پیام‌ها", true, new View.OnClickListener() {
+            public void onClick(View v) {
+                sp.edit().putString("welcome_text", w.getText().toString())
+                        .putString("farewell_text", f.getText().toString()).apply();
+                log("پیام‌های خودکار ذخیره شد");
+                Toast.makeText(MainActivity.this, "ذخیره شد", Toast.LENGTH_SHORT).show();
+            }
+        }), lp(8));
+    }
+
+    void pageGroups() {
+        title("♜ مدیریت گروه‌ها");
+        card("ℹ", "هنوز گروهی متصل نیست",
+                "بعد از اتصال ربات و ادمین‌شدن در گروه، اینجا نمایش داده می‌شود", null);
+        card("⚔", "دستورات مفید در گروه",
+                ".kick  .add  .promote  .demote\n.open  .close  .mute  .tagall\n.warn  .warns  .rules  .info", null);
+    }
+
+    void pageLogs() {
+        title("▤ گزارش فعالیت‌ها");
+        String logs = sp.getString("logs", "");
+        if (logs.isEmpty()) {
+            card("∅", "گزارشی وجود ندارد", null, null);
+        } else {
+            for (String line : logs.split("\n")) {
+                TextView t = label(line, 13, Color.LTGRAY, false, Gravity.START);
+                t.setBackground(shape(CARD, 10, 0));
+                content.addView(t, lp(3));
+            }
+            content.addView(button("پاک‌کردن گزارش‌ها", false, new View.OnClickListener() {
+                public void onClick(View v) {
+                    sp.edit().remove("logs").apply();
+                    show("logs");
+                }
+            }), lp(8));
+        }
+    }
+
+    // ---------- ناوبری ----------
+    void show(String page) {
+        current = page;
+        content.removeAllViews();
+        switch (page) {
+            case "connect": pageConnect(); break;
+            case "protect": pageProtect(); break;
+            case "messages": pageMessages(); break;
+            case "groups": pageGroups(); break;
+            case "logs": pageLogs(); break;
+            default: pageHome();
+        }
+        buildNav();
+    }
+
+    void navItem(final String page, String text) {
+        TextView t = label(text, 12, current.equals(page) ? GOLD : Color.GRAY,
+                current.equals(page), Gravity.CENTER);
+        t.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) { show(page); }
+        });
+        nav.addView(t, new LinearLayout.LayoutParams(0, dp(48), 1));
+    }
+
+    void buildNav() {
+        nav.removeAllViews();
+        navItem("home", "♛\nخانه");
+        navItem("connect", "◈\nاتصال");
+        navItem("protect", "🛡\nمحافظت");
+        navItem("messages", "✉\nپیام");
+        navItem("logs", "▤\nگزارش");
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (!current.equals("home")) show("home");
+        else super.onBackPressed();
+    }
+
+    @Override
+    public void onCreate(Bundle b) {
         super.onCreate(b);
-        if (Build.VERSION.SDK_INT >= 33)
-            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 1);
-        if (!CommandCenter.isRemote(this)) startForegroundService(new Intent(this, BotService.class));
-        center = new CommandCenter(this);
+        sp = getSharedPreferences("royal", MODE_PRIVATE);
+        getWindow().setStatusBarColor(BG);
+        getWindow().setNavigationBarColor(BG);
+        getWindow().getDecorView().setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(BG);
-        root.setPadding(0, dp(36), 0, 0);
+        root.setPadding(dp(12), dp(10), dp(12), dp(4));
 
-        content = new FrameLayout(this);
-        root.addView(content, new LinearLayout.LayoutParams(-1, 0, 1f));
-
-        LinearLayout nav = new LinearLayout(this);
-        nav.setBackgroundColor(SURF);
-        String[] names = {"Home", "WhatsApp", "Custom", "Terminal"};
-        tabs = new Button[names.length];
-        for (int i = 0; i < names.length; i++) {
-            final int idx = i;
-            tabs[i] = btn(names[i], v -> show(idx));
-            nav.addView(tabs[i], new LinearLayout.LayoutParams(0, -2, 1f));
-        }
-        root.addView(nav);
-        setContentView(root);
-        show(0);
-    }
-
-    @Override protected void onDestroy() { super.onDestroy(); if (poll != null) ui.removeCallbacks(poll); }
-
-    // ---------- navigation ----------
-    private void show(int i) {
-        if (poll != null) ui.removeCallbacks(poll);
-        content.removeAllViews();
-        View v = i == 0 ? home() : i == 1 ? whatsapp() : i == 2 ? custom() : terminal();
-        content.addView(v);
-        for (int k = 0; k < tabs.length; k++) tabs[k].setTextColor(k == i ? GOLD : Color.LTGRAY);
-    }
-
-    // ---------- Home ----------
-    private View home() {
-        LinearLayout l = col();
-        l.addView(h1("♛ QURESHI ROYAL"));
-        TextView st = txt("Loading...");
-        st.setTextSize(16);
-        l.addView(st);
-
-        LinearLayout row = new LinearLayout(this);
-        String[] acts = {"start", "stop", "restart"};
-        for (String a : acts)
-            row.addView(btn(a.substring(0, 1).toUpperCase() + a.substring(1), v -> bg(() -> {
-                String r = center.run("bot " + a);
-                runOnUiThread(() -> Toast.makeText(this, r, Toast.LENGTH_LONG).show());
-            })), new LinearLayout.LayoutParams(0, -2, 1f));
-        l.addView(row);
-        l.addView(btn("Allow background (battery)", v -> center.run("battery")));
-
-        poll = new Runnable() {
-            @Override public void run() {
-                bg(() -> {
-                    String r = Api.call(MainActivity.this, "GET", "/api/bot/status", null);
-                    String t;
-                    if (r == null) t = "Engine: starting...\n(first run takes ~30 seconds)";
-                    else try {
-                        JSONObject j = new JSONObject(r);
-                        t = "Engine: online\nWhatsApp: " + j.optString("status") + "\nBot: "
-                            + (j.optBoolean("enabled") ? "ON" : "OFF") + "\nLinked: " + (j.optBoolean("linked") ? "yes" : "no");
-                    } catch (Exception e) { t = "Status error"; }
-                    final String f = t;
-                    runOnUiThread(() -> st.setText(f));
-                });
-                ui.postDelayed(this, 3000);
-            }
-        };
-        ui.post(poll);
-        return l;
-    }
-
-    // ---------- WhatsApp ----------
-    private View whatsapp() {
-        LinearLayout l = col();
-        l.addView(h1("WhatsApp"));
-        l.addView(txt("1. Type the bot's number with country code (digits only).\n2. Tap 'Get code'.\n3. WhatsApp > Linked devices > Link with phone number > enter the code."));
-        EditText num = edit("93700000000");
-        num.setInputType(InputType.TYPE_CLASS_NUMBER);
-        l.addView(num);
-        TextView res = txt("");
-        res.setTextSize(22); res.setTextColor(GOLD); res.setTextIsSelectable(true);
-        l.addView(btn("Get code", v -> bg(() -> {
-            String r = center.run("whatsapp pairing " + num.getText().toString().trim());
-            runOnUiThread(() -> res.setText(r));
-        })));
-        l.addView(res);
-        l.addView(btn("Disconnect / unlink", v -> bg(() -> {
-            String r = center.run("whatsapp disconnect");
-            runOnUiThread(() -> res.setText(r));
-        })));
-        return l;
-    }
-
-    // ---------- Customization ----------
-    private View custom() {
-        ScrollView sv = new ScrollView(this);
-        LinearLayout l = col();
-        sv.addView(l);
-        l.addView(h1("Customization"));
-
-        EditText name = edit("Bot name"), prefix = edit("Prefix (e.g. !)"),
-            welcome = edit("Welcome (@user, @group)"), goodbye = edit("Goodbye (@user)");
-        Switch link = sw("Anti-link"), spam = sw("Anti-spam"), flood = sw("Anti-flood");
-        for (View v : new View[]{name, prefix, welcome, goodbye, link, spam, flood}) l.addView(v);
-
-        bg(() -> {
-            String r = Api.call(this, "GET", "/api/settings", null);
-            if (r == null) return;
-            try {
-                JSONObject j = new JSONObject(r), p = j.optJSONObject("protection");
-                runOnUiThread(() -> {
-                    name.setText(j.optString("botName")); prefix.setText(j.optString("prefix"));
-                    welcome.setText(j.optString("welcome")); goodbye.setText(j.optString("goodbye"));
-                    if (p != null) { link.setChecked(p.optBoolean("antilink")); spam.setChecked(p.optBoolean("antispam")); flood.setChecked(p.optBoolean("antiflood")); }
-                });
-            } catch (Exception ignored) {}
-        });
-
-        l.addView(btn("Save", v -> bg(() -> {
-            try {
-                JSONObject body = new JSONObject()
-                    .put("botName", name.getText().toString()).put("prefix", prefix.getText().toString())
-                    .put("welcome", welcome.getText().toString()).put("goodbye", goodbye.getText().toString())
-                    .put("protection", new JSONObject().put("antilink", link.isChecked())
-                        .put("antispam", spam.isChecked()).put("antiflood", flood.isChecked()));
-                String r = Api.call(this, "PUT", "/api/settings", body.toString());
-                runOnUiThread(() -> Toast.makeText(this, r == null ? "Engine not ready" : "Saved", Toast.LENGTH_SHORT).show());
-            } catch (Exception ignored) {}
-        })));
-
-        l.addView(h1("Custom commands"));
-        EditText cn = edit("Command name (e.g. rules)"), cr = edit("Reply text");
-        TextView list = txt("");
-        l.addView(cn); l.addView(cr);
-        l.addView(btn("Add / update", v -> bg(() -> {
-            String r = center.run("commands create " + cn.getText().toString().trim() + " " + cr.getText().toString().trim());
-            runOnUiThread(() -> Toast.makeText(this, r, Toast.LENGTH_SHORT).show());
-        })));
-        l.addView(btn("Show list", v -> bg(() -> {
-            String r = center.run("commands list");
-            runOnUiThread(() -> list.setText(r));
-        })));
-        l.addView(list);
-        return sv;
-    }
-
-    // ---------- Terminal ----------
-    private View terminal() {
-        LinearLayout l = col();
-        l.addView(h1("Command Center"));
         ScrollView scroll = new ScrollView(this);
-        TextView out = txt("Type 'help'.\n");
-        out.setTextColor(GREEN); out.setTypeface(Typeface.MONOSPACE); out.setTextIsSelectable(true);
-        scroll.addView(out);
-        l.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1f));
-        EditText in = edit("royal> ");
-        in.setSingleLine(true);
-        in.setImeOptions(EditorInfo.IME_ACTION_SEND);
-        in.setOnEditorActionListener((v, id, e) -> {
-            String line = in.getText().toString();
-            in.setText("");
-            out.append("royal> " + line + "\n");
-            bg(() -> {
-                String r = center.run(line);
-                runOnUiThread(() -> { if (!r.isEmpty()) out.append(r + "\n"); scroll.post(() -> scroll.fullScroll(View.FOCUS_DOWN)); });
-            });
-            return true;
-        });
-        l.addView(in);
-        return l;
-    }
+        scroll.setFillViewport(true);
+        content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        scroll.addView(content);
+        root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
 
-    // ---------- helpers ----------
-    private int dp(int v) { return (int) (v * getResources().getDisplayMetrics().density); }
-    private void bg(Runnable r) { new Thread(r).start(); }
-    private LinearLayout col() {
-        LinearLayout l = new LinearLayout(this);
-        l.setOrientation(LinearLayout.VERTICAL);
-        l.setPadding(dp(16), dp(8), dp(16), dp(8));
-        return l;
-    }
-    private TextView h1(String s) {
-        TextView t = new TextView(this); t.setText(s); t.setTextColor(GOLD); t.setTextSize(20);
-        t.setPadding(0, dp(12), 0, dp(8)); return t;
-    }
-    private TextView txt(String s) {
-        TextView t = new TextView(this); t.setText(s); t.setTextColor(Color.WHITE);
-        t.setPadding(0, dp(6), 0, dp(6)); return t;
-    }
-    private Button btn(String s, View.OnClickListener c) {
-        Button b = new Button(this); b.setText(s); b.setAllCaps(false);
-        b.setTextColor(Color.LTGRAY); b.setBackgroundColor(SURF); b.setOnClickListener(c);
-        return b;
-    }
-    private EditText edit(String hint) {
-        EditText e = new EditText(this); e.setHint(hint);
-        e.setTextColor(Color.WHITE); e.setHintTextColor(Color.GRAY); return e;
-    }
-    private Switch sw(String s) {
-        Switch w = new Switch(this); w.setText(s); w.setTextColor(Color.WHITE);
-        w.setPadding(0, dp(8), 0, dp(8)); return w;
+        nav = new LinearLayout(this);
+        nav.setOrientation(LinearLayout.HORIZONTAL);
+        nav.setBackground(shape(CARD, 16, PURPLE));
+        root.addView(nav, lp(4));
+
+        setContentView(root);
+        show("home");
     }
 }
