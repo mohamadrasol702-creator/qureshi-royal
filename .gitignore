@@ -21,3 +21,5 @@ app/libnode/
 *.so
 nm/
 stage/
+nm/
+stage/
