@@ -19,3 +19,5 @@ app/libnode/
 *.zip
 *.apk
 *.so
+nm/
+stage/
