@@ -6,3 +6,16 @@ backups/
 app/libnode/
 app/build/
 *.zip
+.gradle/
+local.properties
+build/
+app/.cxx/
+.gradle/
+local.properties
+build/
+app/.cxx/
+node_modules/
+app/libnode/
+*.zip
+*.apk
+*.so
