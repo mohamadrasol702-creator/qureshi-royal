@@ -38,6 +38,7 @@ async function onMessage(sock, m) {
   const s = db.get('settings');
 
   if (isGroup) {
+    if (require('./commands').isMuted(jid, user) && !(await isAdmin(sock, jid, user))) { await sock.sendMessage(jid, { delete: m.key }).catch(() => {}); return; }
     const why = violation(s, jid, user, text);
     if (why && !(await isAdmin(sock, jid, user))) {
       await sock.sendMessage(jid, { delete: m.key }).catch(() => {});
@@ -50,6 +51,7 @@ async function onMessage(sock, m) {
 
   if (!text.startsWith(s.prefix)) return;
   const cmd = text.slice(s.prefix.length).split(/\s+/)[0].toLowerCase();
+  if (await require('./commands').handle(sock, m, { jid, user, isGroup, prefix: s.prefix, text, botName: s.botName })) return;
   const custom = db.get('commands');
   if (cmd === 'ping') await sock.sendMessage(jid, { text: 'pong 👑' }, { quoted: m });
   else if (cmd === 'menu') {
