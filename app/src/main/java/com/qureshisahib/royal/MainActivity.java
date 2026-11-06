@@ -1,394 +1,151 @@
 package com.qureshisahib.royal;
 
 import android.app.Activity;
-import android.os.Bundle;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.os.Bundle;
+import android.os.Handler;
+import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.*;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
+import java.util.function.Consumer;
+import org.json.JSONObject;
 
 public class MainActivity extends Activity {
 
-    final int BG = Color.rgb(8,5,15);
-    final int CARD = Color.rgb(24,17,36);
-    final int PURPLE = Color.rgb(112,0,255);
-    final int GOLD = Color.rgb(238,195,95);
-    final int WHITE = Color.WHITE;
+    final int BG = Color.rgb(10, 6, 24);
+    final int CARD = Color.rgb(22, 14, 42);
+    final int PURPLE = Color.rgb(124, 58, 237);
+    final int GOLD = Color.rgb(224, 184, 91);
+    final int GREEN = Color.rgb(76, 175, 80);
+    final int RED = Color.rgb(229, 57, 53);
     final int GRAY = Color.LTGRAY;
 
-    LinearLayout root, content, nav;
+    LinearLayout content, nav;
     ScrollView scroll;
     SharedPreferences sp;
-    String current = "home";
+    String current = "splash";
 
-    int dp(int n) {
-        return (int)(n * getResources().getDisplayMetrics().density + .5f);
-    }
+    // ================= ابزارها =================
+    int dp(int n) { return (int) (n * getResources().getDisplayMetrics().density + .5f); }
 
     GradientDrawable bg(int color, int stroke, int radius) {
-        GradientDrawable d = new GradientDrawable(
-            GradientDrawable.Orientation.TL_BR,
-            new int[]{color, Color.rgb(17,9,29)}
-        );
+        GradientDrawable d = new GradientDrawable();
+        d.setColor(color);
         d.setCornerRadius(dp(radius));
-        if(stroke != 0) d.setStroke(dp(1),stroke);
+        if (stroke != 0) d.setStroke(dp(1), stroke);
         return d;
     }
 
-    TextView text(String s,int size,int color,boolean bold) {
+    TextView text(String s, int size, int color, boolean bold) {
         TextView t = new TextView(this);
         t.setText(s);
         t.setTextSize(size);
         t.setTextColor(color);
         t.setGravity(Gravity.CENTER);
-        t.setTypeface(Typeface.DEFAULT,bold?1:0);
-        t.setPadding(dp(5),dp(5),dp(5),dp(5));
+        t.setTypeface(Typeface.DEFAULT, bold ? Typeface.BOLD : Typeface.NORMAL);
+        t.setPadding(dp(5), dp(4), dp(5), dp(4));
         return t;
     }
 
     LinearLayout.LayoutParams params(int top) {
-        LinearLayout.LayoutParams p =
-            new LinearLayout.LayoutParams(-1,-2);
-        p.setMargins(0,dp(top),0,dp(top));
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1, -2);
+        p.setMargins(0, dp(top), 0, dp(top));
         return p;
     }
 
-    void addTitle(String title) {
-        TextView t = text(title,21,GOLD,true);
-        content.addView(t,params(12));
+    void toast(String s) { Toast.makeText(this, s, Toast.LENGTH_SHORT).show(); }
+
+    void title(String t) { content.addView(text(t, 21, GOLD, true), params(10)); }
+
+    void say(String t) {
+        TextView v = text(t, 13, Color.WHITE, false);
+        v.setGravity(Gravity.START);
+        v.setBackground(bg(CARD, PURPLE, 12));
+        v.setPadding(dp(12), dp(10), dp(12), dp(10));
+        v.setTextIsSelectable(true);
+        content.addView(v, params(5));
     }
 
-    void header() {
-        LinearLayout h = new LinearLayout(this);
-        h.setOrientation(1);
-        h.setGravity(Gravity.CENTER);
-        h.setPadding(dp(8),dp(12),dp(8),dp(12));
-        h.setBackground(bg(CARD,PURPLE,20));
-
-        h.addView(text("♛  QURESHI ROYAL  ♛",23,GOLD,true));
-        h.addView(text("King of WhatsApp Bots",13,GRAY,false));
-
-        content.addView(h,params(5));
-    }
-
-    void card(String icon,String title,String subtitle,
-              View.OnClickListener click) {
-
+    LinearLayout box(int radius) {
         LinearLayout c = new LinearLayout(this);
-        c.setOrientation(1);
+        c.setOrientation(LinearLayout.VERTICAL);
         c.setGravity(Gravity.CENTER);
-        c.setPadding(dp(12),dp(12),dp(12),dp(12));
-        c.setBackground(bg(CARD,PURPLE,17));
-
-        c.addView(text(icon,25,GOLD,true));
-        c.addView(text(title,15,WHITE,true));
-
-        if(subtitle != null)
-            c.addView(text(subtitle,12,GRAY,false));
-
-        if(click != null) c.setOnClickListener(click);
-
-        content.addView(c,params(5));
+        c.setPadding(dp(12), dp(12), dp(12), dp(12));
+        c.setBackground(bg(CARD, PURPLE, radius));
+        return c;
     }
 
-    void grid(String icon,String title,String subtitle,
-              final String page) {
-
-        LinearLayout c = new LinearLayout(this);
-        c.setOrientation(1);
-        c.setGravity(Gravity.CENTER);
-        c.setPadding(dp(5),dp(12),dp(5),dp(12));
-        c.setBackground(bg(CARD,PURPLE,16));
-
-        c.addView(text(icon,25,GOLD,true));
-        c.addView(text(title,13,WHITE,true));
-        if(subtitle != null)
-            c.addView(text(subtitle,11,GRAY,false));
-
-        c.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                show(page);
-            }
-        });
-
-        LinearLayout.LayoutParams p =
-            new LinearLayout.LayoutParams(0,-2,1);
-        p.setMargins(dp(3),dp(4),dp(3),dp(4));
-        gridRow.addView(c,p);
+    void card(String icon, String name, String sub, View.OnClickListener click) {
+        LinearLayout c = box(16);
+        c.addView(text(icon, 24, GOLD, true));
+        c.addView(text(name, 15, Color.WHITE, true));
+        if (sub != null) c.addView(text(sub, 12, GRAY, false));
+        if (click != null) c.setOnClickListener(click);
+        content.addView(c, params(5));
     }
 
-    LinearLayout gridRow;
-
-    void startGrid() {
-        gridRow = new LinearLayout(this);
-        gridRow.setOrientation(LinearLayout.HORIZONTAL);
-        content.addView(gridRow,params(3));
+    LinearLayout row() {
+        LinearLayout r = new LinearLayout(this);
+        r.setOrientation(LinearLayout.HORIZONTAL);
+        content.addView(r, params(2));
+        return r;
     }
 
-    void endGrid() {
-        gridRow = null;
+    void tile(LinearLayout r, String icon, String name, final Runnable act) {
+        LinearLayout c = box(15);
+        c.setPadding(dp(4), dp(14), dp(4), dp(14));
+        c.addView(text(icon, 24, PURPLE, true));
+        c.addView(text(name, 12, Color.WHITE, false));
+        c.setOnClickListener(v -> act.run());
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(0, -2, 1);
+        p.setMargins(dp(3), dp(3), dp(3), dp(3));
+        r.addView(c, p);
     }
 
-    void stat(String icon,String number,String name) {
-        LinearLayout c = new LinearLayout(this);
-        c.setOrientation(1);
-        c.setGravity(Gravity.CENTER);
-        c.setPadding(dp(5),dp(10),dp(5),dp(10));
-        c.setBackground(bg(CARD,PURPLE,15));
-
-        c.addView(text(icon,22,PURPLE,true));
-        c.addView(text(number,18,GOLD,true));
-        c.addView(text(name,12,WHITE,false));
-
-        stats.addView(c,new LinearLayout.LayoutParams(0,-2,1));
-    }
-
-    LinearLayout stats;
-
-    void button(String title,boolean primary,Runnable action) {
+    void button(String name, boolean primary, final Runnable act) {
         Button b = new Button(this);
-        b.setText(title);
-        b.setTextSize(14);
+        b.setText(name);
         b.setAllCaps(false);
-        b.setTextColor(primary?WHITE:GOLD);
-        b.setTypeface(null,Typeface.BOLD);
-        b.setBackground(bg(primary?PURPLE:CARD,GOLD,25));
-        b.setOnClickListener(v -> action.run());
-        content.addView(b,params(6));
+        b.setTextSize(15);
+        b.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        b.setTextColor(primary ? Color.BLACK : GOLD);
+        b.setBackground(primary ? bg(GOLD, 0, 28) : bg(CARD, GOLD, 28));
+        b.setOnClickListener(v -> act.run());
+        content.addView(b, params(5));
     }
 
-    void pageHome() {
-        header();
-
-        LinearLayout status = new LinearLayout(this);
-        status.setOrientation(1);
-        status.setGravity(Gravity.CENTER);
-        status.setPadding(dp(10),dp(12),dp(10),dp(12));
-        status.setBackground(bg(CARD,PURPLE,18));
-
-        status.addView(text("♛",32,GOLD,true));
-        status.addView(text((sp.getBoolean("online",false)?"🟢  ربات آنلاین است":"🔴  ربات آفلاین است"),16,WHITE,true));
-        status.addView(text((sp.getBoolean("online",false)?"Connected":"Offline"),12,GRAY,false));
-
-        content.addView(status,params(8));
-
-        stats = new LinearLayout(this);
-        stats.setOrientation(LinearLayout.HORIZONTAL);
-        stats.setGravity(Gravity.CENTER);
-        content.addView(stats,params(8));
-
-        stat("👥","0","گروه‌ها");
-        stat("💬","0","چت خصوصی");
-        stat("◷","24h","فعالیت");
-
-        button("⏻   خاموش کردن ربات",true,() -> {
-            Toast.makeText(this,"موتور هنوز متصل نشده است",Toast.LENGTH_SHORT).show();
-        });
-
-        button("⚙   تنظیمات",false,() -> show("settings"));
-
-        addTitle("مرکز مدیریت سلطنتی");
-
-        startGrid();
-        grid("👥","مدیریت گروه","گروه‌ها","groups");
-        grid("▥","آمار و گزارش","فعالیت","logs");
-        grid("ⓘ","درباره ما","اطلاعات","about");
-        endGrid();
-
-        startGrid();
-        grid("▣","اتصال واتساپ","QR / Pairing","connect");
-        grid("🛡","امنیت","محافظت","protect");
-        grid("⚙","تنظیمات","Settings","settings");
-        endGrid();
-
-        startGrid();
-        grid("♛","مرکز فرمان","Commands","commands");
-        grid("✉","پیام‌ها","متن‌ها","messages");
-        grid("⏻","خروج","Exit","exit");
-        endGrid();
-    }
-
-    void pageConnect() {
-        addTitle("♛ اتصال به واتساپ");
-
-        card("◈","اتصال با QR",
-             "کد QR پس از اتصال موتور نمایش داده می‌شود",null);
-
-        card("▦","QR CODE",
-             "فعلاً موتور واتساپ متصل نیست",null);
-
-        final EditText phone = input("شماره واتساپ با کد کشور");
-        phone.setInputType(3);
-        content.addView(phone,params(8));
-
-        button("ذخیره شماره",true,() -> {
-            String p = phone.getText().toString().replaceAll("\\D","");
-            if(p.length()<8) {
-                toast("شماره صحیح نیست");
-                return;
-            }
-            sp.edit().putString("phone",p).apply(); log("شماره ثبت شد");
-            toast("شماره ذخیره شد");
-        });
-
-        final EditText code = input("کد جفت‌سازی");
-        content.addView(code,params(8));
-
-        button("تأیید کد",false,() ->
-            toast("اتصال واقعی در مرحله موتور فعال می‌شود"));
-    }
-
-    EditText input(String hint) {
+    EditText input(String hint, String value, boolean multi) {
         EditText e = new EditText(this);
-        e.setSingleLine(true);
         e.setHint(hint);
-        e.setTextColor(WHITE);
-        e.setHintTextColor(GRAY);
+        e.setText(value);
+        e.setTextColor(Color.WHITE);
+        e.setHintTextColor(Color.GRAY);
         e.setTextSize(14);
-        e.setPadding(dp(14),dp(12),dp(14),dp(12));
-        e.setBackground(bg(CARD,PURPLE,15));
+        e.setPadding(dp(14), dp(10), dp(14), dp(10));
+        e.setBackground(bg(CARD, PURPLE, 14));
+        if (multi) { e.setMinLines(2); e.setGravity(Gravity.TOP | Gravity.START); }
         return e;
     }
 
-    void toggle(String key,String name,boolean def) {
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(0);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(dp(12),dp(9),dp(12),dp(9));
-        row.setBackground(bg(CARD,PURPLE,13));
-
-        TextView t = text(name,14,WHITE,true);
-        t.setGravity(Gravity.RIGHT|Gravity.CENTER_VERTICAL);
-
-        row.addView(t,new LinearLayout.LayoutParams(0,-2,1));
-
-        Switch s = new Switch(this);
-        s.setChecked(sp.getBoolean(key,def));
-
-        s.setOnCheckedChangeListener((v,on) -> { sp.edit().putBoolean(key,on).apply(); log((on?"فعال شد: ":"غیرفعال شد: ")+name); });
-
-        row.addView(s);
-        content.addView(row,params(5));
+    EditText field(String label, String key, String def, boolean multi) {
+        TextView l = text(label, 13, GOLD, true);
+        l.setGravity(Gravity.START);
+        content.addView(l, params(2));
+        EditText e = input(label, sp.getString(key, def), multi);
+        content.addView(e, params(3));
+        return e;
     }
 
-    void pageProtect() {
-        addTitle("🛡 تنظیمات امنیتی");
-
-        String[] keys = {
-            "antilink","antiads","antiflood","antirepeat",
-            "onlyadmin","welcome","farewell","protectsettings"
-        };
-
-        String[] names = {
-            "حذف خودکار لینک","ضد تبلیغات","ضد سیل پیام",
-            "ضد پیام تکراری","فقط مدیران","خوش‌آمدگویی",
-            "پیام خداحافظی","قفل تنظیمات گروه"
-        };
-
-        boolean[] defaults = {true,true,true,true,false,true,true,true};
-
-        for(int i=0;i<keys.length;i++)
-            toggle(keys[i],names[i],defaults[i]);
-
-        button("💾 ذخیره تنظیمات",true,() ->
-            toast("تنظیمات ذخیره شد"));
-    }
-
-    void groupTile(String icon,String name) {
-        LinearLayout c = new LinearLayout(this);
-        c.setOrientation(1);
-        c.setGravity(Gravity.CENTER);
-        c.setPadding(dp(8),dp(15),dp(8),dp(15));
-        c.setBackground(bg(CARD,PURPLE,15));
-
-        c.addView(text(icon,26,GOLD,true));
-        c.addView(text(name,13,WHITE,true));
-
-        gridRow.addView(c,new LinearLayout.LayoutParams(0,-2,1));
-    }
-
-    void pageGroups() {
-        addTitle("♛ مدیریت گروه‌ها");
-
-        startGrid();
-        groupTile("🔒","بستن گروه");
-        groupTile("🔓","باز کردن گروه");
-        endGrid();
-
-        startGrid();
-        groupTile("➕","افزودن عضو");
-        groupTile("➖","حذف عضو");
-        endGrid();
-
-        startGrid();
-        groupTile("♛","ارتقای مدیر");
-        groupTile("⬇","تنزل مدیر");
-        endGrid();
-
-        startGrid();
-        groupTile("ⓘ","اطلاعات گروه");
-        groupTile("✎","تغییر نام و عکس");
-        endGrid();
-
-        card("ℹ","هنوز گروهی متصل نیست",
-            "پس از اتصال موتور، گروه‌ها اینجا نمایش داده می‌شوند",null);
-    }
-
-    void pageSettings() {
-        addTitle("♛ تنظیمات QURESHI ROYAL");
-
-        card("🌐","زبان برنامه","فارسی / دری",null);
-        card("🔔","اعلان‌ها","تنظیم اعلان‌های برنامه",null);
-        card("🔐","امنیت برنامه","حفاظت از دسترسی",null);
-        card("♛","ظاهر برنامه","Royal Black & Purple",null);
-        card("💾","پشتیبان‌گیری","ذخیره تنظیمات",null);
-        card("ⓘ","نسخه برنامه","QURESHI ROYAL v1.0",null);
-    }
-
-    void pageLogs() {
-        addTitle("♛ گزارش فعالیت‌ها");
-
-        String logs = sp.getString("logs","");
-        if(logs.isEmpty()) {
-            card("✓","گزارشی وجود ندارد",
-                "گزارش‌ها پس از فعال‌شدن سیستم ثبت می‌شوند",null);
-        } else {
-            for(String line:logs.split("\n"))
-                card("●",line,null,null);
-        }
-    }
-
-    void pageAbout() {
-        addTitle("♛ درباره QURESHI ROYAL");
-        card("👑","QURESHI ROYAL",
-            "King of WhatsApp Bots",null);
-        card("♛","طراحی و ترتیب",
-            "ارسلان عربزاده",null);
-        card("ⓘ","نسخه","1.0",null);
-    }
-
-    void pageCommands() {
-        addTitle("♛ مرکز فرمان");
-
-        final EditText command = input("فرمان را وارد کنید");
-        content.addView(command,params(8));
-
-        button("اجرای فرمان",true,() ->
-            toast("مرکز فرمان بعداً به موتور وصل می‌شود"));
-    }
-
-    void pageHelp() {
-        addTitle("♛ راهنمای برنامه");
-        card("◈","اتصال واتساپ","صفحه اتصال و جفت‌سازی",null);
-        card("🛡","امنیت","مدیریت تنظیمات محافظت",null);
-        card("👥","گروه‌ها","مدیریت اعضا و مدیران",null);
-    }
-
+    // ================= گزارش داخلی =================
     void log(String msg) {
-        String t = new java.text.SimpleDateFormat("MM/dd HH:mm", java.util.Locale.US).format(new java.util.Date());
+        String t = new SimpleDateFormat("MM/dd HH:mm", Locale.US).format(new Date());
         String old = sp.getString("logs", "");
         String[] l = (t + "  " + msg + (old.isEmpty() ? "" : "\n" + old)).split("\n");
         StringBuilder sb = new StringBuilder();
@@ -396,126 +153,349 @@ public class MainActivity extends Activity {
         sp.edit().putString("logs", sb.toString()).apply();
     }
 
-    EditText field(String label, String key, String def, boolean multi) {
-        content.addView(text(label, 13, GOLD, true), params(2));
-        EditText e = input(label);
-        e.setText(sp.getString(key, def));
-        if (multi) { e.setSingleLine(false); e.setMinLines(2); }
-        content.addView(e, params(3));
-        return e;
+    // ================= ارتباط با سرور =================
+    void net(final String method, final String path, final String body, final Consumer<String> cb) {
+        new Thread(() -> {
+            final String r = Api.call(MainActivity.this, method, path, body);
+            runOnUiThread(() -> cb.accept(r));
+        }).start();
     }
 
-    void pageMessages() {
-        addTitle("✉ پیام‌ها و متن‌ها");
-        final EditText pre = field("پیشوند دستورها", "prefix", "!", false);
-        final EditText w = field("متن خوش‌آمدگویی", "welcome_text", "به گروه @group خوش آمدی @user 👑", true);
-        final EditText f = field("متن خداحافظی", "farewell_text", "خداحافظ @user، به امید دیدار 👋", true);
-        final EditText a = field("پیام اخطار", "warn_text", "⚠️ @user اخطار @n از 3", true);
-        button("💾 ذخیره", true, () -> {
-            sp.edit().putString("prefix", pre.getText().toString())
-              .putString("welcome_text", w.getText().toString())
-              .putString("farewell_text", f.getText().toString())
-              .putString("warn_text", a.getText().toString()).apply();
-            log("متن‌ها ذخیره شد");
-            toast("ذخیره شد");
+    String j(String line) {
+        try { return new JSONObject().put("line", line).toString(); } catch (Exception e) { return "{}"; }
+    }
+
+    String outOf(String r) {
+        if (r == null) return "سرور در دسترس نیست. مطمئن شو سرور روشن است.";
+        try { return new JSONObject(r).optString("output", r); } catch (Exception e) { return r; }
+    }
+
+    void cmd(String line, Consumer<String> cb) { net("POST", "/api/command", j(line), r -> cb.accept(outOf(r))); }
+
+    void cmdMany(final String[] lines, final Runnable done) {
+        new Thread(() -> {
+            for (String l : lines) Api.call(MainActivity.this, "POST", "/api/command", j(l));
+            runOnUiThread(done);
+        }).start();
+    }
+
+    void refreshStatus() {
+        net("GET", "/api/bot/status", null, r -> {
+            boolean on = false, linked = false;
+            if (r != null) {
+                try {
+                    JSONObject o = new JSONObject(r);
+                    on = "connected".equals(o.optString("status"));
+                    linked = o.optBoolean("linked");
+                } catch (Exception e) { }
+            }
+            boolean changed = on != sp.getBoolean("online", false);
+            sp.edit().putBoolean("online", on).putBoolean("linked", linked).putBoolean("reach", r != null).apply();
+            if (on) cmd("group list", o -> {
+                int n = o.startsWith("No groups") || o.startsWith("Error") ? 0 : o.split("\n").length;
+                sp.edit().putInt("groups_n", n).apply();
+            });
+            if (changed && current.equals("home")) render("home");
         });
     }
 
-    void toast(String s) {
-        Toast.makeText(this,s,Toast.LENGTH_SHORT).show();
+    // ================= صفحه‌ها =================
+    void pageSplash() {
+        content.addView(text("♛", 90, GOLD, true), params(60));
+        content.addView(text("QURESHI ROYAL", 32, Color.WHITE, true), params(4));
+        content.addView(text("WhatsApp Bot", 16, GOLD, false), params(2));
+        content.addView(text("♛ در خدمتم شهزاده ارسلان ♛", 14, GOLD, false), params(14));
+        content.addView(text("Loading...", 13, GRAY, false), params(20));
+        new Handler().postDelayed(() -> { if (current.equals("splash")) show("home"); }, 1500);
+    }
+
+    void pageHome() {
+        content.addView(text("♛ QURESHI ROYAL ♛", 24, Color.WHITE, true), params(2));
+        content.addView(text("King of WhatsApp Bots", 13, GOLD, false), params(0));
+
+        boolean on = sp.getBoolean("online", false), reach = sp.getBoolean("reach", false);
+        LinearLayout st = box(18);
+        st.addView(text("♛", 50, GOLD, true));
+        st.addView(text(on ? "🟢  ربات آنلاین است" : "🔴  ربات آفلاین است", 16, on ? GREEN : RED, true));
+        st.addView(text(!reach ? "سرور در دسترس نیست" : (sp.getBoolean("linked", false) ? (on ? "Connected" : "متصل نیست") : "هنوز شماره‌ای وصل نشده"), 12, GRAY, false));
+        content.addView(st, params(8));
+
+        LinearLayout stats = new LinearLayout(this);
+        stats.setBackground(bg(CARD, PURPLE, 14));
+        stats.setPadding(dp(4), dp(8), dp(4), dp(8));
+        String[][] s = {{"👥", "گروه‌ها", "" + sp.getInt("groups_n", 0)}, {"💬", "چت خصوصی", "-"}, {"⏱", "فعالیت", on ? "24h" : "-"}};
+        for (String[] x : s) {
+            LinearLayout b = new LinearLayout(this);
+            b.setOrientation(LinearLayout.VERTICAL);
+            b.setGravity(Gravity.CENTER);
+            b.addView(text(x[0], 20, PURPLE, true));
+            b.addView(text(x[1], 12, GRAY, false));
+            b.addView(text(x[2], 16, Color.WHITE, true));
+            stats.addView(b, new LinearLayout.LayoutParams(0, -2, 1));
+        }
+        content.addView(stats, params(6));
+
+        button(on ? "⏻  خاموش کردن ربات" : "⏻  روشن کردن ربات", true, () -> {
+            if (!on && !sp.getBoolean("linked", false)) { toast("اول از صفحهٔ اتصال شماره را وصل کن"); show("connect"); return; }
+            net("POST", on ? "/api/bot/stop" : "/api/bot/start", "{}", r -> {
+                toast(r == null ? "سرور در دسترس نیست" : (on ? "خاموش شد" : "در حال اتصال..."));
+                log(on ? "ربات خاموش شد" : "درخواست روشن‌کردن ربات");
+                new Handler().postDelayed(this::refreshStatus, 2500);
+            });
+        });
+        button("⚙  تنظیمات", false, () -> show("settings"));
+
+        LinearLayout r1 = row();
+        tile(r1, "👥", "مدیریت گروه", () -> show("groups"));
+        tile(r1, "📊", "گزارش‌ها", () -> show("logs"));
+        tile(r1, "✉", "پیام‌ها", () -> show("messages"));
+        LinearLayout r2 = row();
+        tile(r2, "◈", "اتصال", () -> show("connect"));
+        tile(r2, "⌨", "مرکز فرمان", () -> show("commands"));
+        tile(r2, "ⓘ", "درباره", () -> show("about"));
+        LinearLayout r3 = row();
+        tile(r3, "❓", "راهنما", () -> show("help"));
+        tile(r3, "⏻", "خروج", () -> finish());
+    }
+
+    void pageConnect() {
+        title("◈ اتصال به واتساپ");
+        boolean linked = sp.getBoolean("linked", false);
+        card(linked ? "✅" : "📱", linked ? "شماره وصل است" : "شماره هنوز وصل نیست",
+                "اتصال با کد جفت‌سازی انجام می‌شود (QR در سرور پشتیبانی نمی‌شود)", null);
+        content.addView(text("شمارهٔ ربات با کد کشور و بدون + (مثال: 93700000000)", 12, GRAY, false), params(4));
+        final EditText phone = input("شمارهٔ واتساپ", sp.getString("phone", ""), false);
+        phone.setInputType(InputType.TYPE_CLASS_PHONE);
+        content.addView(phone, params(4));
+        button("دریافت کد جفت‌سازی", true, () -> {
+            String p = phone.getText().toString().replaceAll("[^0-9]", "");
+            if (p.length() < 8) { toast("شماره درست نیست"); return; }
+            sp.edit().putString("phone", p).apply();
+            toast("چند ثانیه صبر کن...");
+            cmd("whatsapp pairing " + p, o -> {
+                log("درخواست کد جفت‌سازی");
+                say(o);
+                say("واتساپ ← دستگاه‌های متصل ← اتصال با شماره ← کد را وارد کن. بعد دکمهٔ روشن‌کردن را در خانه بزن.");
+            });
+        });
+        button("قطع اتصال و حذف نشست", false, () ->
+            cmd("whatsapp disconnect", o -> { log("اتصال قطع شد"); toast(o); refreshStatus(); }));
+    }
+
+    void toggle(final String key, final String name, boolean def, final String serverKey) {
+        LinearLayout r = new LinearLayout(this);
+        r.setGravity(Gravity.CENTER_VERTICAL);
+        r.setPadding(dp(14), dp(8), dp(14), dp(8));
+        r.setBackground(bg(CARD, PURPLE, 14));
+        TextView t = text(name, 15, Color.WHITE, false);
+        t.setGravity(Gravity.START);
+        r.addView(t, new LinearLayout.LayoutParams(0, -2, 1));
+        Switch sw = new Switch(this);
+        sw.setChecked(sp.getBoolean(key, def));
+        sw.setOnCheckedChangeListener((v, on) -> {
+            sp.edit().putBoolean(key, on).apply();
+            log((on ? "فعال شد: " : "غیرفعال شد: ") + name);
+            if (serverKey != null) cmd("security " + serverKey + (on ? " on" : " off"), o -> { });
+        });
+        r.addView(sw);
+        content.addView(r, params(4));
+    }
+
+    void pageSettings() {
+        title("⚙ تنظیمات");
+        toggle("antilink", "ضد لینک (حذف خودکار)", false, "antilink");
+        toggle("antiflood", "ضد سیل و اسپم", false, "antiflood");
+        toggle("antirepeat", "ضد تکرار پیام", false, "antispam");
+        toggle("antiads", "ضد تبلیغات (در اپ)", true, null);
+        toggle("onlyadmin", "فقط مدیران (در اپ)", false, null);
+        content.addView(text("سه گزینهٔ اول مستقیم روی سرور اثر می‌گذارند.", 11, GRAY, false), params(4));
+        button("✉  ویرایش پیام‌ها و پیشوند", false, () -> show("messages"));
+    }
+
+    void pageMessages() {
+        title("✉ پیام‌ها و متن‌ها");
+        final EditText bn = field("نام ربات", "botname", "Qureshi Royal", false);
+        final EditText pre = field("پیشوند دستورها (۱ یا ۲ حرف)", "prefix", "!", false);
+        final EditText w = field("خوش‌آمدگویی (@user و @group)", "welcome_text", "به @group خوش آمدی @user 👑", true);
+        final EditText f = field("خداحافظی", "farewell_text", "خداحافظ @user", true);
+        button("💾  ذخیره روی سرور", true, () -> {
+            String p = pre.getText().toString().trim();
+            if (p.isEmpty() || p.length() > 2) { toast("پیشوند باید ۱ یا ۲ حرف باشد"); return; }
+            sp.edit().putString("botname", bn.getText().toString()).putString("prefix", p)
+                .putString("welcome_text", w.getText().toString()).putString("farewell_text", f.getText().toString()).apply();
+            String[] lines = {"settings set botname " + bn.getText(), "settings set prefix " + p,
+                "settings set welcome " + w.getText().toString().replace("\n", " "),
+                "settings set goodbye " + f.getText().toString().replace("\n", " ")};
+            cmdMany(lines, () -> { log("متن‌ها ذخیره شد"); toast("ذخیره شد"); });
+        });
+    }
+
+    void pageGroups() {
+        title("♜ مدیریت گروه");
+        final int sel = sp.getInt("sel", 0);
+        LinearLayout r1 = row();
+        tile(r1, "🔒", "بستن گروه", () -> groupAct("close"));
+        tile(r1, "🔓", "باز کردن گروه", () -> groupAct("open"));
+        LinearLayout r2 = row();
+        tile(r2, "ℹ", "اعضای گروه", () -> groupAct("members"));
+        tile(r2, "🔄", "تازه‌سازی لیست", () -> show("groups"));
+        say("افزودن، حذف، ارتقا و تنزل عضو را داخل گروه بنویس:\n" + sp.getString("prefix", "!") + "add 937...   " + sp.getString("prefix", "!") + "kick @عضو\n" + sp.getString("prefix", "!") + "promote @عضو   " + sp.getString("prefix", "!") + "demote @عضو");
+        content.addView(text(sel == 0 ? "یک گروه انتخاب کن:" : "گروه انتخاب‌شده: شمارهٔ " + sel, 13, GOLD, true), params(6));
+        final LinearLayout list = new LinearLayout(this);
+        list.setOrientation(LinearLayout.VERTICAL);
+        content.addView(list);
+        cmd("group list", o -> {
+            if (o.startsWith("No groups") || o.startsWith("Error") || o.startsWith("سرور")) {
+                TextView t = text(o.startsWith("Error") ? "ربات هنوز به واتساپ وصل نیست" : o, 13, GRAY, false);
+                list.addView(t);
+                return;
+            }
+            for (final String line : o.split("\n")) {
+                LinearLayout c = box(12);
+                c.addView(text(line, 14, Color.WHITE, false));
+                final int n = parseNum(line);
+                if (n == sel) c.setBackground(bg(CARD, GOLD, 12));
+                c.setOnClickListener(v -> { sp.edit().putInt("sel", n).apply(); show("groups"); });
+                list.addView(c, params(3));
+            }
+        });
+    }
+
+    int parseNum(String line) {
+        try { return Integer.parseInt(line.split("\\.")[0].trim()); } catch (Exception e) { return 0; }
+    }
+
+    void groupAct(final String act) {
+        int n = sp.getInt("sel", 0);
+        if (n == 0) { toast("اول یک گروه را انتخاب کن"); return; }
+        cmd("group " + act + " " + n, o -> { log("گروه " + n + ": " + act); say(o); });
+    }
+
+    void pageLogs() {
+        title("▤ گزارش‌ها");
+        String l = sp.getString("logs", "");
+        if (!l.isEmpty()) for (String line : l.split("\n")) {
+            LinearLayout r = new LinearLayout(this);
+            r.setGravity(Gravity.CENTER_VERTICAL);
+            r.setPadding(dp(10), dp(6), dp(10), dp(6));
+            r.setBackground(bg(CARD, PURPLE, 12));
+            r.addView(text("●", 16, GREEN, true));
+            TextView t = text(line, 12, Color.WHITE, false);
+            t.setGravity(Gravity.START);
+            r.addView(t, new LinearLayout.LayoutParams(0, -2, 1));
+            content.addView(r, params(3));
+        }
+        content.addView(text("گزارش سرور", 14, GOLD, true), params(8));
+        cmd("logs", o -> say(o));
+        button("پاک‌کردن گزارش‌های اپ", false, () -> { sp.edit().remove("logs").apply(); show("logs"); });
+    }
+
+    void pageCommands() {
+        title("⌨ مرکز فرمان");
+        content.addView(text("هر فرمان سرور را اینجا بنویس. برای لیست: help", 12, GRAY, false), params(3));
+        final EditText c = input("مثلاً: help یا system", "", false);
+        content.addView(c, params(4));
+        button("اجرا", true, () -> {
+            String line = c.getText().toString().trim();
+            if (line.isEmpty()) { toast("فرمان را بنویس"); return; }
+            cmd(line, o -> say(o));
+        });
+    }
+
+    void pageAbout() {
+        title("ⓘ درباره");
+        card("👑", "QURESHI ROYAL", "King of WhatsApp Bots", null);
+        card("♛", "طراحی و سفارش", "شهزاده ارسلان", null);
+        card("ⓘ", "نسخه", "1.0", null);
+    }
+
+    void pageHelp() {
+        title("❓ راهنما");
+        card("1", "اتصال", "صفحهٔ اتصال: شماره را بنویس، کد را بگیر و در واتساپ وارد کن", null);
+        card("2", "روشن‌کردن", "در خانه دکمهٔ روشن‌کردن ربات را بزن", null);
+        card("3", "دستورها در گروه", "ربات را ادمین گروه کن و بنویس: " + sp.getString("prefix", "!") + "menu", null);
+    }
+
+    // ================= ناوبری =================
+    void render(String page) {
+        current = page;
+        content.removeAllViews();
+        switch (page) {
+            case "splash": pageSplash(); break;
+            case "connect": pageConnect(); break;
+            case "settings": pageSettings(); break;
+            case "messages": pageMessages(); break;
+            case "groups": pageGroups(); break;
+            case "logs": pageLogs(); break;
+            case "commands": pageCommands(); break;
+            case "about": pageAbout(); break;
+            case "help": pageHelp(); break;
+            default: pageHome();
+        }
+        buildNav();
+        scroll.post(() -> scroll.scrollTo(0, 0));
     }
 
     void show(String page) {
-        current=page;
-        content.removeAllViews();
-
-        switch(page) {
-            case "connect": pageConnect(); break;
-            case "protect": pageProtect(); break;
-            case "groups": pageGroups(); break;
-            case "settings": pageSettings(); break;
-            case "logs": pageLogs(); break;
-            case "about": pageAbout(); break;
-            case "commands": pageCommands(); break;
-            case "help": pageHelp(); break;
-            case "messages": pageMessages(); break;
-            case "exit": finish(); return;
-            default: pageHome();
-        }
-
-        buildNav();
-        scroll.post(() -> scroll.scrollTo(0,0));
+        render(page);
+        if (page.equals("home")) refreshStatus();
     }
 
-    void navItem(String page,String icon,String name) {
-        LinearLayout item = new LinearLayout(this);
-        item.setOrientation(1);
-        item.setGravity(Gravity.CENTER);
-
-        int color=current.equals(page)?GOLD:GRAY;
-
-        item.addView(text(icon,20,color,true));
-        item.addView(text(name,10,color,true));
-
-        item.setOnClickListener(v -> show(page));
-
-        nav.addView(item,new LinearLayout.LayoutParams(0,dp(55),1));
+    void navItem(final String page, String icon, String name) {
+        LinearLayout it = new LinearLayout(this);
+        it.setOrientation(LinearLayout.VERTICAL);
+        it.setGravity(Gravity.CENTER);
+        int c = current.equals(page) ? GOLD : Color.GRAY;
+        it.addView(text(icon, 18, c, true));
+        it.addView(text(name, 10, c, current.equals(page)));
+        it.setOnClickListener(v -> show(page));
+        nav.addView(it, new LinearLayout.LayoutParams(0, dp(52), 1));
     }
 
     void buildNav() {
         nav.removeAllViews();
-
-        navItem("home","♛","خانه");
-        navItem("groups","👥","گروه‌ها");
-        navItem("settings","⚙","تنظیمات");
-        navItem("logs","▤","گزارش");
-        navItem("about","ⓘ","درباره");
+        nav.setVisibility(current.equals("splash") ? View.GONE : View.VISIBLE);
+        navItem("home", "♛", "خانه");
+        navItem("connect", "◈", "اتصال");
+        navItem("groups", "👥", "گروه‌ها");
+        navItem("settings", "⚙", "تنظیمات");
+        navItem("logs", "▤", "گزارش");
     }
 
     @Override
     public void onBackPressed() {
-        if(!current.equals("home")) show("home");
+        if (!current.equals("home") && !current.equals("splash")) show("home");
         else super.onBackPressed();
     }
 
     @Override
     public void onCreate(Bundle b) {
         super.onCreate(b);
-
-        sp=getSharedPreferences("royal",MODE_PRIVATE);
-
+        sp = getSharedPreferences("royal", MODE_PRIVATE);
         getWindow().setStatusBarColor(BG);
         getWindow().setNavigationBarColor(BG);
-        getWindow().getDecorView().setLayoutDirection(
-            View.LAYOUT_DIRECTION_RTL
-        );
+        getWindow().getDecorView().setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
 
-        root=new LinearLayout(this);
-        root.setOrientation(1);
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(BG);
-        root.setPadding(dp(10),dp(8),dp(10),dp(5));
+        root.setPadding(dp(10), dp(8), dp(10), dp(4));
 
-        scroll=new ScrollView(this);
+        scroll = new ScrollView(this);
         scroll.setFillViewport(true);
         scroll.setVerticalScrollBarEnabled(false);
-
-        content=new LinearLayout(this);
-        content.setOrientation(1);
-        content.setPadding(dp(3),dp(3),dp(3),dp(8));
-
+        content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(dp(3), dp(3), dp(3), dp(8));
         scroll.addView(content);
+        root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
 
-        root.addView(scroll,
-            new LinearLayout.LayoutParams(-1,0,1));
-
-        nav=new LinearLayout(this);
-        nav.setOrientation(0);
+        nav = new LinearLayout(this);
         nav.setGravity(Gravity.CENTER);
-        nav.setBackground(bg(CARD,PURPLE,18));
-
-        root.addView(nav,params(5));
+        nav.setBackground(bg(CARD, PURPLE, 16));
+        root.addView(nav, params(4));
 
         setContentView(root);
-        show("home");
+        render("splash");
     }
 }
