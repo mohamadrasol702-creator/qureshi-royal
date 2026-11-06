@@ -228,15 +228,29 @@ public class MainActivity extends Activity {
     }
 
     void pageConnect() {
-        title("◈ اتصال واتساپ");
-        content.addView(label("شمارهٔ ربات را با کد کشور و بدون + بنویسید (مثال: 93700000000)",
-                13, Color.LTGRAY, false, Gravity.START));
-        final EditText phone = input("شمارهٔ واتساپ", sp.getString("phone", ""), false);
+        title("◈ اتصال به واتساپ");
+        LinearLayout qr = new LinearLayout(this);
+        qr.setOrientation(LinearLayout.VERTICAL);
+        qr.setGravity(Gravity.CENTER);
+        qr.setPadding(dp(14), dp(24), dp(14), dp(24));
+        qr.setBackground(shape(CARD, 18, PURPLE));
+        qr.addView(label("▦", 90, Color.WHITE, true, Gravity.CENTER));
+        qr.addView(label("کد QR را اسکن کنید", 15, Color.WHITE, false, Gravity.CENTER));
+        content.addView(qr, lp(6));
+
+        content.addView(label("♛  یا کد جفت‌سازی را وارد کنید  ♛", 14, GOLD, false, Gravity.CENTER), lp(8));
+        TextView code = label(sp.getString("pair_code", "--- ---"), 26, Color.WHITE, true, Gravity.CENTER);
+        code.setBackground(shape(CARD, 14, PURPLE));
+        content.addView(code, lp(4));
+        content.addView(label("زمان انقضا: 10:00", 12, Color.LTGRAY, false, Gravity.CENTER));
+
+        content.addView(label("شمارهٔ ربات (با کد کشور، بدون +)", 13, Color.LTGRAY, false, Gravity.START), lp(6));
+        final EditText phone = input("93700000000", sp.getString("phone", ""), false);
         phone.setInputType(InputType.TYPE_CLASS_PHONE);
-        content.addView(phone, lp(8));
+        content.addView(phone, lp(4));
         content.addView(button("ذخیره شماره", true, new View.OnClickListener() {
             public void onClick(View v) {
-                String p = phone.getText().toString().replaceAll("\\D", "");
+                String p = phone.getText().toString().replaceAll("[^0-9]", "");
                 if (p.length() < 8) {
                     Toast.makeText(MainActivity.this, "شماره درست نیست", Toast.LENGTH_SHORT).show();
                     return;
@@ -246,18 +260,37 @@ public class MainActivity extends Activity {
                 Toast.makeText(MainActivity.this, "ذخیره شد", Toast.LENGTH_SHORT).show();
             }
         }), lp(6));
+        content.addView(button("↻  تجربهٔ دوباره", false, new View.OnClickListener() {
+            public void onClick(View v) { show("connect"); }
+        }), lp(4));
         content.addView(button("قطع اتصال و پاک‌کردن شماره", false, new View.OnClickListener() {
             public void onClick(View v) {
                 sp.edit().remove("phone").putString("status", "ربات هنوز راه‌اندازی نشده است").apply();
                 log("اتصال پاک شد");
                 show("connect");
             }
-        }), lp(6));
+        }), lp(4));
     }
 
     void pageProtect() {
-        title("🛡 محافظت گروه");
-        for (int i = 0; i < KEYS.length; i++) toggle(KEYS[i], NAMES[i], DEFS[i]);
+        title("⚙ تنظیمات");
+        toggle("antilink", "ضد لینک (Auto Remove)", true);
+        toggle("antiads", "ضد تبلیغات", true);
+        toggle("antirepeat", "ضد تکرار پیام", true);
+        toggle("antiflood", "ضد اسپم و فلود", true);
+        toggle("protectsettings", "قفل تنظیمات گروه", false);
+        toggle("onlyadmin", "فقط مدیران", true);
+        toggle("welcome", "پیام خوش‌آمدگویی", true);
+        toggle("farewell", "پیام خداحافظی", true);
+        content.addView(button("✉  ویرایش متن پیام‌ها", false, new View.OnClickListener() {
+            public void onClick(View v) { show("messages"); }
+        }), lp(6));
+        content.addView(button("💾  ذخیره تنظیمات", true, new View.OnClickListener() {
+            public void onClick(View v) {
+                log("تنظیمات ذخیره شد");
+                Toast.makeText(MainActivity.this, "ذخیره شد", Toast.LENGTH_SHORT).show();
+            }
+        }), lp(4));
     }
 
     void pageMessages() {
@@ -280,24 +313,57 @@ public class MainActivity extends Activity {
         }), lp(8));
     }
 
+    void actionItem(LinearLayout row, String icon, String name) {
+        final String n = name;
+        LinearLayout b = new LinearLayout(this);
+        b.setOrientation(LinearLayout.VERTICAL);
+        b.setGravity(Gravity.CENTER);
+        b.setPadding(dp(4), dp(16), dp(4), dp(16));
+        b.setBackground(shape(CARD, 14, PURPLE));
+        b.addView(label(icon, 26, PURPLE, true, Gravity.CENTER));
+        b.addView(label(name, 14, Color.WHITE, false, Gravity.CENTER));
+        b.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                log("درخواست: " + n);
+                Toast.makeText(MainActivity.this, n + " (بعد از اتصال سرور فعال می‌شود)", Toast.LENGTH_SHORT).show();
+            }
+        });
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(0, -2, 1);
+        p.setMargins(dp(4), dp(4), dp(4), dp(4));
+        row.addView(b, p);
+    }
+
     void pageGroups() {
-        title("♜ مدیریت گروه‌ها");
-        card("ℹ", "هنوز گروهی متصل نیست",
-                "بعد از اتصال ربات و ادمین‌شدن در گروه، اینجا نمایش داده می‌شود", null);
-        card("⚔", "دستورات مفید در گروه",
-                ".kick  .add  .promote  .demote\n.open  .close  .mute  .tagall\n.warn  .warns  .rules  .info", null);
+        title("♜ مدیریت گروه");
+        String[][] items = {
+            {"🔒", "بستن گروه (Close)"}, {"🔓", "باز کردن گروه (Open)"},
+            {"➕", "افزودن عضو"}, {"➖", "حذف عضو"},
+            {"♛", "ارتقای مدیر"}, {"⬇", "تنزل مدیر"},
+            {"ℹ", "اطلاعات گروه"}, {"✎", "تغییر نام و عکس"}};
+        for (int i = 0; i < items.length; i += 2) {
+            LinearLayout r = hrow();
+            actionItem(r, items[i][0], items[i][1]);
+            actionItem(r, items[i + 1][0], items[i + 1][1]);
+            content.addView(r, lp(0));
+        }
     }
 
     void pageLogs() {
-        title("▤ گزارش فعالیت‌ها");
+        title("▤ گزارش‌ها");
         String logs = sp.getString("logs", "");
         if (logs.isEmpty()) {
             card("∅", "گزارشی وجود ندارد", null, null);
         } else {
             for (String line : logs.split("\n")) {
-                TextView t = label(line, 13, Color.LTGRAY, false, Gravity.START);
-                t.setBackground(shape(CARD, 10, 0));
-                content.addView(t, lp(3));
+                LinearLayout row = new LinearLayout(this);
+                row.setOrientation(LinearLayout.HORIZONTAL);
+                row.setGravity(Gravity.CENTER_VERTICAL);
+                row.setBackground(shape(CARD, 12, PURPLE));
+                row.setPadding(dp(10), dp(8), dp(10), dp(8));
+                row.addView(label("●", 18, GREEN, true, Gravity.CENTER));
+                row.addView(label(line, 13, Color.WHITE, false, Gravity.START),
+                        new LinearLayout.LayoutParams(0, -2, 1));
+                content.addView(row, lp(3));
             }
             content.addView(button("پاک‌کردن گزارش‌ها", false, new View.OnClickListener() {
                 public void onClick(View v) {
