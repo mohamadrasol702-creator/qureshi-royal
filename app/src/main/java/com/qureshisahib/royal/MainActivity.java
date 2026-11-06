@@ -24,9 +24,9 @@ import java.util.Locale;
 
 public class MainActivity extends Activity {
 
-    final int BG = Color.rgb(12, 10, 20);
-    final int CARD = Color.rgb(28, 22, 39);
-    final int PURPLE = Color.rgb(91, 40, 145);
+    final int BG = Color.rgb(10, 6, 24);
+    final int CARD = Color.rgb(22, 14, 42);
+    final int PURPLE = Color.rgb(124, 58, 237);
     final int GOLD = Color.rgb(224, 184, 91);
     final int GREEN = Color.rgb(76, 175, 80);
 
@@ -155,33 +155,76 @@ public class MainActivity extends Activity {
     }
 
     // ---------- صفحه‌ها ----------
-    void pageHome() {
-        TextView brand = label("♛ QURESHI ROYAL ♛", 26, GOLD, true, Gravity.CENTER);
-        content.addView(brand, lp(4));
-        content.addView(label("مرکز مدیریت هوشمند واتساپ", 14, Color.LTGRAY, false, Gravity.CENTER));
+    void statBox(LinearLayout row, String icon, String name, String val) {
+        LinearLayout b = new LinearLayout(this);
+        b.setOrientation(LinearLayout.VERTICAL);
+        b.setGravity(Gravity.CENTER);
+        b.addView(label(icon, 20, PURPLE, true, Gravity.CENTER));
+        b.addView(label(name, 12, Color.LTGRAY, false, Gravity.CENTER));
+        b.addView(label(val, 16, Color.WHITE, true, Gravity.CENTER));
+        row.addView(b, new LinearLayout.LayoutParams(0, -2, 1));
+    }
 
-        String status = sp.getString("status", "ربات هنوز راه‌اندازی نشده است");
-        card("♛", "وضعیت ربات", status, null);
-        card("🛡", "محافظت‌ها", activeCount() + " از " + KEYS.length + " مورد فعال است",
-                new View.OnClickListener() {
-                    public void onClick(View v) { show("protect"); }
-                });
-        card("◈", "اتصال واتساپ", "اتصال با شماره و کُد جفت‌سازی",
-                new View.OnClickListener() {
-                    public void onClick(View v) { show("connect"); }
-                });
-        card("♜", "مدیریت گروه‌ها", "کنترول اعضا، مدیران و تنظیمات",
-                new View.OnClickListener() {
-                    public void onClick(View v) { show("groups"); }
-                });
-        card("✉", "پیام‌های خودکار", "خوش‌آمدگویی و خداحافظی",
-                new View.OnClickListener() {
-                    public void onClick(View v) { show("messages"); }
-                });
-        card("▤", "گزارش فعالیت‌ها", "مشاهدهٔ رویدادها و گزارش ربات",
-                new View.OnClickListener() {
-                    public void onClick(View v) { show("logs"); }
-                });
+    void gridItem(LinearLayout row, String icon, String name, final String page) {
+        LinearLayout b = new LinearLayout(this);
+        b.setOrientation(LinearLayout.VERTICAL);
+        b.setGravity(Gravity.CENTER);
+        b.setPadding(dp(4), dp(10), dp(4), dp(10));
+        b.setBackground(shape(CARD, 14, PURPLE));
+        b.addView(label(icon, 22, PURPLE, true, Gravity.CENTER));
+        b.addView(label(name, 12, Color.WHITE, false, Gravity.CENTER));
+        b.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) { show(page); }
+        });
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(0, -2, 1);
+        p.setMargins(dp(4), dp(4), dp(4), dp(4));
+        row.addView(b, p);
+    }
+
+    LinearLayout hrow() {
+        LinearLayout r = new LinearLayout(this);
+        r.setOrientation(LinearLayout.HORIZONTAL);
+        return r;
+    }
+
+    void pageHome() {
+        content.addView(label("♛ QURESHI ROYAL ♛", 24, Color.WHITE, true, Gravity.CENTER), lp(2));
+        content.addView(label("King of WhatsApp Bots", 13, GOLD, false, Gravity.CENTER));
+
+        LinearLayout st = new LinearLayout(this);
+        st.setOrientation(LinearLayout.VERTICAL);
+        st.setGravity(Gravity.CENTER);
+        st.setPadding(dp(14), dp(14), dp(14), dp(14));
+        st.setBackground(shape(CARD, 18, PURPLE));
+        st.addView(label("♛", 56, GOLD, true, Gravity.CENTER));
+        st.addView(label("● " + sp.getString("status", "ربات آفلاین است"), 16, GREEN, true, Gravity.CENTER));
+        content.addView(st, lp(8));
+
+        LinearLayout stats = hrow();
+        stats.setBackground(shape(CARD, 14, PURPLE));
+        stats.setPadding(dp(4), dp(8), dp(4), dp(8));
+        statBox(stats, "👥", "گروه‌ها", "0");
+        statBox(stats, "💬", "چت خصوصی", "0");
+        statBox(stats, "⏱", "فعالیت", "24h");
+        content.addView(stats, lp(6));
+
+        content.addView(button("⏻  خاموش/روشن کردن ربات", true, new View.OnClickListener() {
+            public void onClick(View v) { show("connect"); }
+        }), lp(6));
+        content.addView(button("⚙  تنظیمات", false, new View.OnClickListener() {
+            public void onClick(View v) { show("protect"); }
+        }), lp(4));
+
+        LinearLayout r1 = hrow();
+        gridItem(r1, "👥", "مدیریت گروه", "groups");
+        gridItem(r1, "📊", "آمار و گزارش", "logs");
+        gridItem(r1, "✉", "پیام‌ها", "messages");
+        content.addView(r1, lp(4));
+        LinearLayout r2 = hrow();
+        gridItem(r2, "◈", "اتصال", "connect");
+        gridItem(r2, "🛡", "محافظت", "protect");
+        gridItem(r2, "🏠", "خانه", "home");
+        content.addView(r2, lp(0));
     }
 
     void pageConnect() {
