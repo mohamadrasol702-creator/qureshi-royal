@@ -170,7 +170,18 @@ public class MainActivity extends Activity {
         try { return new JSONObject(r).optString("output", r); } catch (Exception e) { return r; }
     }
 
-    void cmd(String line, Consumer<String> cb) { net("POST", "/api/command", j(line), r -> cb.accept(outOf(r))); }
+    void cmd(String line, Consumer<String> cb) {
+        String lc = line.trim().toLowerCase();
+        if (lc.startsWith("config") || lc.equals("battery")) {
+            final String l = line;
+            new Thread(() -> {
+                final String o = new CommandCenter(MainActivity.this).run(l);
+                runOnUiThread(() -> cb.accept(o));
+            }).start();
+            return;
+        }
+        net("POST", "/api/command", j(line), r -> cb.accept(outOf(r)));
+    }
 
     void cmdMany(final String[] lines, final Runnable done) {
         new Thread(() -> {
